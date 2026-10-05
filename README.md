@@ -76,6 +76,8 @@ python gmail_workflow.py drafts data/generated_jobs.xlsx data/gmail_drafts.xlsx
 
 The first run opens the Google OAuth consent flow. Drafts are created in your Gmail account but are not sent.
 
+The workflow validates recipient addresses and skips duplicate recipient+subject pairs within the same batch. Existing rows with a Gmail Draft ID are not recreated.
+
 Open Gmail, review the drafts, then set `Gmail Approval` to `Approved` only for emails you want to send.
 
 ## V3: Send approved drafts
@@ -85,6 +87,26 @@ python gmail_workflow.py send data/gmail_drafts.xlsx data/sent_jobs.xlsx --confi
 ```
 
 The `--confirm` flag is mandatory. The command sends only rows whose `Gmail Approval` is exactly `Approved`, have a Gmail Draft ID, and have not already been marked sent.
+
+Already-sent rows are skipped, so rerunning the command does not resend rows that were successfully recorded as sent.
+
+## Validation and error handling
+
+- Invalid recipient addresses are marked `Invalid Email`.
+- Missing generated subject/body/email is marked `Skipped`.
+- Duplicate recipient+subject pairs in the same draft batch are marked `Duplicate Skipped`.
+- Gmail draft/send failures are recorded in `Gmail Send Status` and processing continues for the remaining rows.
+- Unit tests mock Gmail, so automated tests never send real email.
+
+## Testing
+
+Run the full automated test suite with:
+
+```bash
+pytest -q
+```
+
+These tests cover the approval gate, draft creation, duplicate/invalid-row handling, approved-only sending, idempotent send behavior, and Gmail error recording.
 
 ## Safety design
 
@@ -100,4 +122,5 @@ The `--confirm` flag is mandatory. The command sends only rows whose `Gmail Appr
 - V1: Excel/CSV -> Groq -> generated email workbook
 - V2: Gmail OAuth -> Gmail drafts
 - V3: Human approval -> Gmail send
+- V4: Validation, idempotency, error handling, and automated Gmail mocks
 - Future: job-fit scoring, duplicate detection, reply handling, and interview preparation
