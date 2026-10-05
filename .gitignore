@@ -1,0 +1,26 @@
+# Secrets
+.env
+.env.*
+!.env.example
+credentials.json
+token.json
+client_secret*.json
+
+# Local job data / personal data
+*.xlsx
+*.xls
+*.csv
+data/*
+!data/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.envrc
+
+# IDE
+.vscode/
+.idea/
