@@ -2,4 +2,7 @@ pandas>=2.2,<3
 openpyxl>=3.1,<4
 groq>=0.31,<1
 python-dotenv>=1.0,<2
+google-api-python-client>=2.150,<3
+google-auth-httplib2>=0.2,<1
+google-auth-oauthlib>=1.2,<2
 pytest>=8,<9
