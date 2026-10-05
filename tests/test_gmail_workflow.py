@@ -75,7 +75,7 @@ def test_create_drafts_creates_only_valid_unique_generated_rows(monkeypatch, tmp
 
     gmail_workflow.create_drafts(str(path), str(output))
 
-    result = pd.read_csv(output)
+    result = pd.read_csv(output).fillna("")
     assert fake.created == [
         (
             "person@example.com",
@@ -129,7 +129,7 @@ def test_send_sends_only_approved_unsent_rows(monkeypatch, tmp_path):
         str(path), str(output), confirm=True
     )
 
-    result = pd.read_csv(output)
+    result = pd.read_csv(output).fillna("")
     assert fake.sent == ["draft-1"]
     assert result.loc[0, "Gmail Send Status"] == "Sent (message-draft-1)"
     assert result.loc[0, "Gmail Draft Status"] == "Sent"
@@ -161,7 +161,7 @@ def test_send_records_gmail_errors(monkeypatch, tmp_path):
         str(path), str(output), confirm=True
     )
 
-    result = pd.read_csv(output)
+    result = pd.read_csv(output).fillna("")
     assert result.loc[0, "Gmail Send Status"] == "Send failed: temporary Gmail failure"
     assert result.loc[0, "Gmail Draft Status"] == ""
 
@@ -189,6 +189,6 @@ def test_create_drafts_records_gmail_errors(monkeypatch, tmp_path):
 
     gmail_workflow.create_drafts(str(path), str(output))
 
-    result = pd.read_csv(output)
+    result = pd.read_csv(output).fillna("")
     assert result.loc[0, "Gmail Draft Status"] == "Error"
     assert result.loc[0, "Gmail Send Status"] == "Draft creation failed: draft service unavailable"
