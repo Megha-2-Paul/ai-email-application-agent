@@ -1,10 +1,12 @@
 import argparse
+import re
 from pathlib import Path
 
 from app.excel_reader import load_job_sheet, write_output
 from app.gmail_service import GmailService
 
 APPROVED = "Approved"
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def ensure_gmail_columns(df):
@@ -19,6 +21,10 @@ def ensure_gmail_columns(df):
     return df
 
 
+def _valid_email(value):
+    return bool(EMAIL_PATTERN.match(str(value).strip()))
+
+
 def create_drafts(input_path, output_path, sheet_name="Qualified Leads"):
     df = ensure_gmail_columns(load_job_sheet(input_path, sheet_name))
     required = {"Generated Subject", "Generated Email", "Public Email"}
@@ -28,6 +34,7 @@ def create_drafts(input_path, output_path, sheet_name="Qualified Leads"):
 
     gmail = GmailService()
     created = 0
+    seen_keys = set()
 
     for index, row in df.iterrows():
         if str(row.get("Gmail Draft ID", "")).strip():
@@ -38,18 +45,37 @@ def create_drafts(input_path, output_path, sheet_name="Qualified Leads"):
         to = str(row["Public Email"]).strip()
         subject = str(row["Generated Subject"]).strip()
         body = str(row["Generated Email"]).strip()
+
         if not to or not subject or not body:
+            df.at[index, "Gmail Draft Status"] = "Skipped"
+            df.at[index, "Gmail Send Status"] = "Missing email, subject, or body"
             continue
+
+        if not _valid_email(to):
+            df.at[index, "Gmail Draft Status"] = "Invalid Email"
+            df.at[index, "Gmail Send Status"] = f"Invalid email address: {to}"
+            continue
+
+        draft_key = (to.lower(), subject)
+        if draft_key in seen_keys:
+            df.at[index, "Gmail Draft Status"] = "Duplicate Skipped"
+            df.at[index, "Gmail Send Status"] = (
+                "Duplicate recipient and subject in this batch"
+            )
+            continue
+
+        seen_keys.add(draft_key)
 
         try:
             draft_id = gmail.create_draft(to, subject, body)
             df.at[index, "Gmail Draft ID"] = draft_id
             df.at[index, "Gmail Draft Status"] = "Created"
             df.at[index, "Gmail Approval"] = "Pending Review"
+            df.at[index, "Gmail Send Status"] = ""
             created += 1
         except Exception as exc:
             df.at[index, "Gmail Draft Status"] = "Error"
-            df.at[index, "Gmail Send Status"] = str(exc)
+            df.at[index, "Gmail Send Status"] = f"Draft creation failed: {exc}"
 
     write_output(input_path, output_path, df, sheet_name=sheet_name)
     print(f"Drafts created: {created}")
@@ -88,7 +114,7 @@ def send_approved(input_path, output_path, sheet_name="Qualified Leads", confirm
             df.at[index, "Gmail Draft Status"] = "Sent"
             sent += 1
         except Exception as exc:
-            df.at[index, "Gmail Send Status"] = f"Error: {exc}"
+            df.at[index, "Gmail Send Status"] = f"Send failed: {exc}"
 
     write_output(input_path, output_path, df, sheet_name=sheet_name)
     print(f"Emails sent: {sent}")
