@@ -10,19 +10,28 @@ load_dotenv()
 class CandidateProfile:
     name: str = "Megha Paul"
     current_role: str = "Associate Data Analyst"
-    experience: str = "2 years of professional experience"
+    experience: str = "2 years"
     location: str = "Kolkata, India"
     email: str = "meghapaul0202@gmail.com"
     phone: str = "+91 6289771661"
     linkedin_url: str = "https://www.linkedin.com/in/megha-paul-735bb1298"
     skills: tuple[str, ...] = (
-        "Python", "SQL", "Pandas", "NumPy", "scikit-learn",
-        "FastAPI", "REST APIs", "Git", "GitHub", "Excel",
-        "data analytics", "machine learning", "AI/LLM projects",
+        "Python",
+        "SQL",
+        "Pandas",
+        "NumPy",
+        "Scikit-learn",
+        "FastAPI",
+        "Git",
+        "GitHub",
+        "Data Analysis",
+        "Machine Learning",
     )
     relevant_projects: tuple[str, ...] = (
         "AI Data Analyst Agent",
-        "Mathematics Assessment and Improvement System",
+        "IoT & ML project",
+        "COVID-19 dashboard",
+        "Mental health dataset analysis",
     )
 
 
