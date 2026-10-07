@@ -66,9 +66,7 @@ class EmailGenerator:
             "because the requirement appears in the posting. Keep the email "
             "specific but factual. Do not add a greeting sign-off or contact "
             "signature beyond the email body itself; the application system adds "
-            "the final signature.
-
-"
+            "the final signature.\n\n"
             f"CANDIDATE PROFILE:\n{json.dumps(candidate, indent=2)}\n\n"
             f"JOB INFORMATION:\n{json.dumps(job, indent=2)}"
         )
@@ -88,13 +86,12 @@ class EmailGenerator:
     def _clean_body(body: str) -> str:
         lines = [line.rstrip() for line in body.strip().splitlines()]
 
-        # Remove common model-generated closings so the system's standardized
-        # signature is the only closing/signature in the final email.
         closing_pattern = re.compile(
             r"^(best regards|kind regards|regards|sincerely|warm regards|"
             r"thanks and regards|thank you|best)\s*[,!:.]*$",
             re.IGNORECASE,
         )
+
         while lines and not lines[-1].strip():
             lines.pop()
 
@@ -104,17 +101,10 @@ class EmailGenerator:
             if closing_pattern.match(lines[index].strip()):
                 lines = lines[:index]
                 break
-            # A closing followed by a model-generated name/contact block is
-            # also removed, but only when the closing phrase is present.
-            if index < len(lines) - 1 and closing_pattern.match(lines[index].strip()):
-                lines = lines[:index]
-                break
 
         while lines and not lines[-1].strip():
             lines.pop()
 
-        # Keep paragraph breaks while removing accidental leading/trailing
-        # whitespace and blank lines.
         cleaned_lines = [line.strip() for line in lines]
         return "\n".join(cleaned_lines).strip()
 
@@ -163,12 +153,12 @@ class EmailGenerator:
         if cleaned.startswith(chr(96) * 3) and cleaned.endswith(chr(96) * 3):
             cleaned = "\n".join(cleaned.splitlines()[1:-1]).strip()
 
-        lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
+        lines = cleaned.splitlines()
         subject_index = next(
             (
                 i
                 for i, line in enumerate(lines)
-                if line.lstrip("#*_- ").upper().startswith("SUBJECT:")
+                if line.strip().lstrip("#*_- ").upper().startswith("SUBJECT:")
             ),
             None,
         )
@@ -176,7 +166,7 @@ class EmailGenerator:
             (
                 i
                 for i, line in enumerate(lines)
-                if line.lstrip("#*_- ").upper().startswith("BODY:")
+                if line.strip().lstrip("#*_- ").upper().startswith("BODY:")
             ),
             None,
         )
@@ -184,12 +174,14 @@ class EmailGenerator:
         if subject_index is None or body_index is None or body_index <= subject_index:
             raise ValueError("Groq response must contain SUBJECT: followed by BODY:.")
 
-        subject_line = lines[subject_index].lstrip("#*_- ").strip()
-        body_start = lines[body_index].lstrip("#*_- ").strip()
+        subject_line = lines[subject_index].strip().lstrip("#*_- ").strip()
+        body_start = lines[body_index].strip().lstrip("#*_- ").strip()
         subject = subject_line.split(":", 1)[1].strip()
-        body = "\n".join(
-            [body_start.split(":", 1)[1].strip(), *lines[body_index + 1 :]]
-        ).strip()
+        body_lines = [
+            body_start.split(":", 1)[1].strip(),
+            *lines[body_index + 1 :],
+        ]
+        body = "\n".join(body_lines).strip()
 
         if not subject:
             raise ValueError("Groq returned an empty subject.")
