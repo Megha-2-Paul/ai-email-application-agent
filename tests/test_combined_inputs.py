@@ -14,18 +14,21 @@ def test_load_job_sheets_combines_and_deduplicates(tmp_path):
         "Public Email": ["one@example.com", "two@example.com"],
         "Job / Apply URL": ["https://example.com/1", "https://example.com/2"],
     }
-    duplicate = {
-        "Company": ["Example"],
-        "Current Role": ["Data Analyst"],
-        "Job Description / Requirements": ["SQL"],
-        "Public Email": ["new@example.com"],
-        "Job / Apply URL": ["https://example.com/1"],
+    second_rows = {
+        "Company": ["Example", "Third"],
+        "Current Role": ["Data Analyst", "Data Scientist"],
+        "Job Description / Requirements": ["SQL", "Python and SQL"],
+        "Public Email": ["new@example.com", "three@example.com"],
+        "Job / Apply URL": ["https://example.com/1", "https://example.com/3"],
     }
 
     pd.DataFrame(base).to_excel(first, index=False, sheet_name="Qualified Leads")
-    pd.DataFrame(duplicate).to_excel(second, index=False, sheet_name="Qualified Leads")
+    pd.DataFrame(second_rows).to_excel(
+        second, index=False, sheet_name="Qualified Leads"
+    )
 
     result = load_job_sheets([first, second])
 
-    assert len(result) == 2
+    assert len(result) == 3
     assert set(result["Source File"]) == {"first.xlsx", "second.xlsx"}
+    assert "new@example.com" not in set(result["Public Email"])
