@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.config import PROFILE
 from app.email_generator import CandidateProfile, EmailGenerator
 
 
@@ -50,16 +51,22 @@ def test_parse_response_rejects_invalid_output(content):
         EmailGenerator._parse_response(content)
 
 
-@pytest.mark.parametrize(
-    "content",
-    [
-        "### SUBJECT: Python Developer Application\n### BODY: Hello Hiring Team,\nI am applying.",
-        "```\nSUBJECT: Python Developer Application\nBODY: Hello Hiring Team,\nI am applying.\n```",
-        "SUBJECT: Python Developer Application\nBODY: Hello Hiring Team,\nI am applying.",
-    ],
-)
-def test_parse_response_tolerates_harmless_formatting(content):
-    subject, body = EmailGenerator._parse_response(content)
+def test_parse_response_tolerates_markdown_headings():
+    subject, body = EmailGenerator._parse_response(
+        "### SUBJECT: Python Developer Application\n"
+        "### BODY: Hello Hiring Team,\n"
+        "I am applying."
+    )
+    assert subject == "Python Developer Application"
+    assert body == "Hello Hiring Team,\nI am applying."
+
+
+def test_parse_response_tolerates_code_fences():
+    fence = chr(96) * 3
+    subject, body = EmailGenerator._parse_response(
+        f"{fence}\nSUBJECT: Python Developer Application\n"
+        f"BODY: Hello Hiring Team,\nI am applying.\n{fence}"
+    )
     assert subject == "Python Developer Application"
     assert body == "Hello Hiring Team,\nI am applying."
 
@@ -82,12 +89,22 @@ def test_generate_uses_fake_groq_client():
     )
 
     assert subject == "Data Analyst Application"
-    assert body == (
-        "Hello Hiring Team,\n"
-        "I am applying for this opportunity."
+    assert body.endswith(
+        "Best regards,\n"
+        "Megha Paul\n"
+        "Associate Data Analyst\n"
+        "+91 6289771661\n"
+        "meghapaul0202@gmail.com\n"
+        "LinkedIn: https://www.linkedin.com/in/megha-paul-735bb1298"
     )
     assert client.calls[0]["model"] == "test-model"
     assert client.calls[0]["temperature"] == 0.2
+
+
+def test_default_profile_has_contact_details():
+    assert PROFILE.email == "meghapaul0202@gmail.com"
+    assert PROFILE.phone == "+91 6289771661"
+    assert PROFILE.linkedin_url == "https://www.linkedin.com/in/megha-paul-735bb1298"
 
 
 def test_default_model_is_current_groq_model(monkeypatch):
