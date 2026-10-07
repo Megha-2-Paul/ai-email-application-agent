@@ -1,85 +1,132 @@
 import json
+import os
+from dataclasses import dataclass
 from typing import Any
 
+from dotenv import load_dotenv
 from groq import Groq
 
-from .config import CandidateProfile, get_groq_api_key, get_groq_model
+load_dotenv()
 
 
-SYSTEM_PROMPT = """You write concise, professional cold-application emails for job seekers.
-
-Rules:
-- Never invent qualifications, employers, years of experience, projects, tools, degrees, or achievements.
-- Use only facts supplied in the candidate profile and job row.
-- Personalize the email to the role and company.
-- Mention only candidate skills/projects relevant to the role.
-- Do not mention salary, relocation, or notice period unless supplied in the job row.
-- Do not claim to have spoken with the recruiter.
-- Keep the email around 120-180 words.
-- Use a professional, natural tone and avoid buzzword-heavy language.
-- If a contact name is provided, address them by name. Otherwise use "Dear Hiring Team,".
-- Return valid JSON with exactly two keys: "subject" and "body".
-"""
-
-
-def _clean(value: Any) -> str:
-    return "" if value is None else str(value).strip()
-
-
-def build_user_prompt(row: dict[str, Any], profile: CandidateProfile) -> str:
-    candidate = {
-        "name": profile.name,
-        "current_role": profile.current_role,
-        "experience": profile.experience,
-        "location": profile.location,
-        "skills": list(profile.skills),
-        "relevant_projects": list(profile.relevant_projects),
-    }
-    job = {
-        "company": _clean(row.get("Company")),
-        "role": _clean(row.get("Current Role")),
-        "role_family": _clean(row.get("Role Family")),
-        "work_location": _clean(row.get("Work Location")),
-        "work_mode": _clean(row.get("Work Mode")),
-        "experience": _clean(row.get("Experience")),
-        "employment_type": _clean(row.get("Employment Type")),
-        "requirements": _clean(row.get("Job Description / Requirements")),
-        "recruiter": _clean(row.get("Recruiter / Contact")),
-        "job_url": _clean(row.get("Job / Apply URL")),
-        "notes": _clean(row.get("Notes")),
-    }
-    return (
-        "Create an application email using these facts.
-
-"
-        f"CANDIDATE PROFILE:
-{json.dumps(candidate, indent=2)}
-
-"
-        f"JOB INFORMATION:
-{json.dumps(job, indent=2)}"
+@dataclass(frozen=True)
+class CandidateProfile:
+    name: str = "Megha Paul"
+    current_role: str = "Associate Data Analyst"
+    experience: str = "2 years"
+    location: str = "Kolkata, India"
+    skills: tuple[str, ...] = (
+        "Python",
+        "SQL",
+        "Pandas",
+        "NumPy",
+        "Scikit-learn",
+        "FastAPI",
+        "Git",
+        "GitHub",
+        "Data Analysis",
+        "Machine Learning",
+    )
+    relevant_projects: tuple[str, ...] = (
+        "AI Data Analyst Agent",
+        "IoT & ML project",
+        "COVID-19 dashboard",
+        "Mental health dataset analysis",
     )
 
 
-class EmailGenerator:
-    def __init__(self, client: Groq | None = None, model: str | None = None):
-        self.client = client or Groq(api_key=get_groq_api_key())
-        self.model = model or get_groq_model()
+def _clean(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, float) and value != value:
+        return ""
+    return str(value).strip()
 
-    def generate(self, row: dict[str, Any]) -> tuple[str, str]:
+
+class EmailGenerator:
+    def __init__(self, model: str | None = None, client: Groq | None = None):
+        api_key = os.getenv("GROQ_API_KEY")
+        if client is not None:
+            self.client = client
+        elif api_key:
+            self.client = Groq(api_key=api_key)
+        else:
+            raise ValueError("GROQ_API_KEY is not configured.")
+        self.model = model or os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+
+    @staticmethod
+    def build_user_prompt(row: dict[str, Any], profile: CandidateProfile) -> str:
+        candidate = {
+            "name": profile.name,
+            "current_role": profile.current_role,
+            "experience": profile.experience,
+            "location": profile.location,
+            "skills": list(profile.skills),
+            "relevant_projects": list(profile.relevant_projects),
+        }
+        job = {
+            "company": _clean(row.get("Company")),
+            "role": _clean(row.get("Current Role")),
+            "role_family": _clean(row.get("Role Family")),
+            "work_location": _clean(row.get("Work Location")),
+            "work_mode": _clean(row.get("Work Mode")),
+            "experience": _clean(row.get("Experience")),
+            "employment_type": _clean(row.get("Employment Type")),
+            "requirements": _clean(row.get("Job Description / Requirements")),
+            "recruiter": _clean(row.get("Recruiter / Contact")),
+            "job_url": _clean(row.get("Job / Apply URL")),
+            "notes": _clean(row.get("Notes")),
+        }
+        return (
+            "Create an application email using these facts.\n\n"
+            f"CANDIDATE PROFILE:\n{json.dumps(candidate, indent=2)}\n\n"
+            f"JOB INFORMATION:\n{json.dumps(job, indent=2)}"
+        )
+
+    def generate(self, row: dict[str, Any], profile: CandidateProfile | None = None) -> tuple[str, str]:
+        profile = profile or CandidateProfile()
         response = self.client.chat.completions.create(
             model=self.model,
-            temperature=0.25,
-            response_format={"type": "json_object"},
+            temperature=0.2,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": build_user_prompt(row, CandidateProfile())},
+                {
+                    "role": "system",
+                    "content": (
+                        "You write concise professional job application emails. "
+                        "Return exactly two sections with these labels: "
+                        "SUBJECT: and BODY:. Do not invent candidate facts, "
+                        "salary, notice period, qualifications, or job details."
+                    ),
+                },
+                {"role": "user", "content": self.build_user_prompt(row, profile)},
             ],
         )
-        content = response.choices[0].message.content or "{}"
-        payload = json.loads(content)
-        subject = _clean(payload.get("subject"))
-        body = _clean(payload.get("body"))
-        if not subject or not body:
-            raise ValueError("Groq returned an incomplete email.")
+        content = response.choices[0].message.content.strip()
+        subject, body = self._parse_response(content)
+        return subject, body
+
+    @staticmethod
+    def _parse_response(content: str) -> tuple[str, str]:
+        lines = [line.rstrip() for line in content.splitlines()]
+        subject_index = next(
+            (i for i, line in enumerate(lines) if line.strip().upper().startswith("SUBJECT:")),
+            None,
+        )
+        body_index = next(
+            (i for i, line in enumerate(lines) if line.strip().upper().startswith("BODY:")),
+            None,
+        )
+
+        if subject_index is None or body_index is None or body_index <= subject_index:
+            raise ValueError("Groq response must contain SUBJECT: followed by BODY:.")
+
+        subject = lines[subject_index].split(":", 1)[1].strip()
+        body = "
+".join(lines[body_index:]).split(":", 1)[1].strip()
+
+        if not subject:
+            raise ValueError("Groq returned an empty subject.")
+        if not body:
+            raise ValueError("Groq returned an empty body.")
+
         return subject, body
