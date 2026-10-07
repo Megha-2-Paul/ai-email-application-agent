@@ -10,6 +10,7 @@ client_secret*.json
 *.xlsx
 *.xls
 *.csv
+*.pdf
 data/*
 !data/.gitkeep
 
