@@ -37,6 +37,7 @@ def _normalize_text(value) -> str:
 def _normalize_company(value) -> str:
     text = _normalize_text(value)
     text = re.sub(r"[^a-z0-9\s]", " ", text)
+    text = " ".join(text.split())
     text = re.sub(
         r"\b(private limited|pvt ltd|pvt limited|limited|ltd|llp|llc|incorporated|inc)\b",
         " ",
