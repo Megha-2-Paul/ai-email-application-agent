@@ -54,7 +54,7 @@ def test_parse_response_rejects_invalid_output(content):
     "content",
     [
         "### SUBJECT: Python Developer Application\n### BODY: Hello Hiring Team,\nI am applying.",
-        "\`\`\`\nSUBJECT: Python Developer Application\nBODY: Hello Hiring Team,\nI am applying.\n\`\`\`",
+        "```\nSUBJECT: Python Developer Application\nBODY: Hello Hiring Team,\nI am applying.\n```",
         "SUBJECT: Python Developer Application\nBODY: Hello Hiring Team,\nI am applying.",
     ],
 )
