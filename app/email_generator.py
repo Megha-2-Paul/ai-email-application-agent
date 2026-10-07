@@ -52,7 +52,7 @@ class EmailGenerator:
             self.client = Groq(api_key=api_key)
         else:
             raise ValueError("GROQ_API_KEY is not configured.")
-        self.model = model or os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+        self.model = model or os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
     @staticmethod
     def build_user_prompt(row: dict[str, Any], profile: CandidateProfile) -> str:
@@ -83,7 +83,11 @@ class EmailGenerator:
             f"JOB INFORMATION:\n{json.dumps(job, indent=2)}"
         )
 
-    def generate(self, row: dict[str, Any], profile: CandidateProfile | None = None) -> tuple[str, str]:
+    def generate(
+        self,
+        row: dict[str, Any],
+        profile: CandidateProfile | None = None,
+    ) -> tuple[str, str]:
         profile = profile or CandidateProfile()
         response = self.client.chat.completions.create(
             model=self.model,
@@ -101,9 +105,10 @@ class EmailGenerator:
                 {"role": "user", "content": self.build_user_prompt(row, profile)},
             ],
         )
-        content = response.choices[0].message.content.strip()
-        subject, body = self._parse_response(content)
-        return subject, body
+        content = response.choices[0].message.content
+        if not content or not content.strip():
+            raise ValueError("Groq returned an empty response.")
+        return self._parse_response(content.strip())
 
     @staticmethod
     def _parse_response(content: str) -> tuple[str, str]:
@@ -121,8 +126,7 @@ class EmailGenerator:
             raise ValueError("Groq response must contain SUBJECT: followed by BODY:.")
 
         subject = lines[subject_index].split(":", 1)[1].strip()
-        body = "
-".join(lines[body_index:]).split(":", 1)[1].strip()
+        body = "\n".join(lines[body_index:]).split(":", 1)[1].strip()
 
         if not subject:
             raise ValueError("Groq returned an empty subject.")
