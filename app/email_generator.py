@@ -52,7 +52,7 @@ class EmailGenerator:
             self.client = Groq(api_key=api_key)
         else:
             raise ValueError("GROQ_API_KEY is not configured.")
-        self.model = model or os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+        self.model = model or os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
     @staticmethod
     def build_user_prompt(row: dict[str, Any], profile: CandidateProfile) -> str:
