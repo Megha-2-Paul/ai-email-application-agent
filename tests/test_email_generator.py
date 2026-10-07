@@ -50,6 +50,20 @@ def test_parse_response_rejects_invalid_output(content):
         EmailGenerator._parse_response(content)
 
 
+@pytest.mark.parametrize(
+    "content",
+    [
+        "### SUBJECT: Python Developer Application\n### BODY: Hello Hiring Team,\nI am applying.",
+        "\`\`\`\nSUBJECT: Python Developer Application\nBODY: Hello Hiring Team,\nI am applying.\n\`\`\`",
+        "SUBJECT: Python Developer Application\nBODY: Hello Hiring Team,\nI am applying.",
+    ],
+)
+def test_parse_response_tolerates_harmless_formatting(content):
+    subject, body = EmailGenerator._parse_response(content)
+    assert subject == "Python Developer Application"
+    assert body == "Hello Hiring Team,\nI am applying."
+
+
 def test_generate_uses_fake_groq_client():
     client = FakeGroqClient(
         "SUBJECT: Data Analyst Application\n"
