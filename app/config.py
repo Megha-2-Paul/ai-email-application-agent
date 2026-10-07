@@ -12,6 +12,9 @@ class CandidateProfile:
     current_role: str = "Associate Data Analyst"
     experience: str = "2 years of professional experience"
     location: str = "Kolkata, India"
+    email: str = "meghapaul0202@gmail.com"
+    phone: str = "+91 6289771661"
+    linkedin_url: str = "https://www.linkedin.com/in/megha-paul-735bb1298"
     skills: tuple[str, ...] = (
         "Python", "SQL", "Pandas", "NumPy", "scikit-learn",
         "FastAPI", "REST APIs", "Git", "GitHub", "Excel",
