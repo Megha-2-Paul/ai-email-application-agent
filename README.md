@@ -131,7 +131,6 @@ Already-sent rows are skipped, so rerunning the command does not resend rows tha
 
 ## Validation and error handling
 
-- Public email cells can contain multiple addresses separated by punctuation; recipient extraction deduplicates them.
 - Invalid or missing recipients are skipped.
 - Missing generated subject/body is skipped.
 - Duplicate recipient+subject pairs in the same draft batch are skipped.
