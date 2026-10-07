@@ -76,6 +76,12 @@ def test_generate_uses_fake_groq_client():
     assert client.calls[0]["temperature"] == 0.2
 
 
+def test_default_model_is_current_groq_model(monkeypatch):
+    monkeypatch.delenv("GROQ_MODEL", raising=False)
+    generator = EmailGenerator(client=FakeGroqClient("SUBJECT: Test\nBODY: Test body"))
+    assert generator.model == "openai/gpt-oss-120b"
+
+
 def test_generate_rejects_empty_groq_response():
     client = FakeGroqClient("")
     generator = EmailGenerator(client=client)
