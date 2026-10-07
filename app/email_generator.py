@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from typing import Any
 
 from dotenv import load_dotenv
@@ -53,7 +54,21 @@ class EmailGenerator:
             "notes": _clean(row.get("Notes")),
         }
         return (
-            "Create an application email using these facts.\n\n"
+            "Create a concise professional application email using only the "
+            "candidate facts explicitly provided below. Use the job information "
+            "only to understand the role and decide which candidate facts are "
+            "relevant. Job requirements are NOT candidate experience or skills. "
+            "Never claim that the candidate has a tool, qualification, project, "
+            "deployment experience, cloud experience, or other capability unless "
+            "it appears in CANDIDATE PROFILE. Do not invent salary, notice period, "
+            "education, years of experience, employer details, or achievements. "
+            "Do not say that the candidate has completed a job requirement merely "
+            "because the requirement appears in the posting. Keep the email "
+            "specific but factual. Do not add a greeting sign-off or contact "
+            "signature beyond the email body itself; the application system adds "
+            "the final signature.
+
+"
             f"CANDIDATE PROFILE:\n{json.dumps(candidate, indent=2)}\n\n"
             f"JOB INFORMATION:\n{json.dumps(job, indent=2)}"
         )
@@ -68,6 +83,40 @@ class EmailGenerator:
             f"{profile.email}\n"
             f"LinkedIn: {profile.linkedin_url}"
         )
+
+    @staticmethod
+    def _clean_body(body: str) -> str:
+        lines = [line.rstrip() for line in body.strip().splitlines()]
+
+        # Remove common model-generated closings so the system's standardized
+        # signature is the only closing/signature in the final email.
+        closing_pattern = re.compile(
+            r"^(best regards|kind regards|regards|sincerely|warm regards|"
+            r"thanks and regards|thank you|best)\s*[,!:.]*$",
+            re.IGNORECASE,
+        )
+        while lines and not lines[-1].strip():
+            lines.pop()
+
+        for index in range(len(lines) - 1, -1, -1):
+            if not lines[index].strip():
+                continue
+            if closing_pattern.match(lines[index].strip()):
+                lines = lines[:index]
+                break
+            # A closing followed by a model-generated name/contact block is
+            # also removed, but only when the closing phrase is present.
+            if index < len(lines) - 1 and closing_pattern.match(lines[index].strip()):
+                lines = lines[:index]
+                break
+
+        while lines and not lines[-1].strip():
+            lines.pop()
+
+        # Keep paragraph breaks while removing accidental leading/trailing
+        # whitespace and blank lines.
+        cleaned_lines = [line.strip() for line in lines]
+        return "\n".join(cleaned_lines).strip()
 
     def generate(
         self,
@@ -88,8 +137,11 @@ class EmailGenerator:
                         "Do not use Markdown headings, code fences, or extra labels. "
                         "Do not add a signature or contact details; those are added "
                         "by the application system. "
-                        "Do not invent candidate facts, salary, notice period, "
-                        "qualifications, or job details."
+                        "The candidate profile is the only source of candidate "
+                        "facts. Treat every job requirement as a requirement of the "
+                        "employer, not as proof that the candidate has that skill. "
+                        "Never invent candidate facts, salary, notice period, "
+                        "qualifications, experience, tools, projects, or job details."
                     ),
                 },
                 {"role": "user", "content": self.build_user_prompt(row, profile)},
@@ -100,6 +152,9 @@ class EmailGenerator:
             raise ValueError("Groq returned an empty response.")
 
         subject, body = self._parse_response(content.strip())
+        body = self._clean_body(body)
+        if not body:
+            raise ValueError("Groq returned an empty body.")
         return subject, body + self._signature(profile)
 
     @staticmethod
