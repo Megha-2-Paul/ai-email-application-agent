@@ -37,7 +37,7 @@ The agent is designed around the `Qualified Leads` sheet. Expected columns inclu
 - Notes
 - Action
 
-Multiple job files can be combined. Duplicate rows are removed using normalized company, role, and application URL values, and the originating filename is retained in `Source File`.
+Multiple job files can be combined. Duplicate rows are removed using normalized company, role, and application URL values; company legal-suffix variants such as `Pvt. Ltd.` are normalized, and the originating filename is retained in `Source File`.
 
 ## Generated columns
 
@@ -87,6 +87,8 @@ Inspect the generated workbook before moving to Gmail.
 
 ## Candidate signature
 
+Generated email bodies end with a standardized signature. The model is instructed to use only candidate facts from `app/config.py`; job requirements are treated as employer requirements, not proof of candidate skills. Model-generated sign-offs are removed before the standardized signature is appended.
+
 Generated email bodies end with:
 
 - Megha Paul
@@ -99,7 +101,7 @@ Contact information is centralized in `app/config.py`.
 
 ## Resume selection
 
-Resume selection is deterministic and based on the job role, role family, requirements, and notes.
+Resume selection is deterministic and role-first: explicit role/title signals take priority over requirement keyword scoring, with Python/backend/AI roles defaulting to the Python Developer resume when signals are ambiguous.
 
 Analytics-oriented roles such as Data Analyst, Business Intelligence, MIS, Data Science, and Power BI roles use the Data Analyst resume.
 
