@@ -97,9 +97,11 @@ class EmailGenerator:
                     "role": "system",
                     "content": (
                         "You write concise professional job application emails. "
-                        "Return exactly two sections with these labels: "
-                        "SUBJECT: and BODY:. Do not invent candidate facts, "
-                        "salary, notice period, qualifications, or job details."
+                        "Return only two sections, each starting on its own line: "
+                        "SUBJECT: <one-line subject> and BODY: <email body>. "
+                        "Do not use Markdown headings, code fences, or extra labels. "
+                        "Do not invent candidate facts, salary, notice period, "
+                        "qualifications, or job details."
                     ),
                 },
                 {"role": "user", "content": self.build_user_prompt(row, profile)},
@@ -113,7 +115,7 @@ class EmailGenerator:
     @staticmethod
     def _parse_response(content: str) -> tuple[str, str]:
         cleaned = content.strip()
-        if cleaned.startswith("\`\`\`") and cleaned.endswith("\`\`\`"):
+        if cleaned.startswith("```") and cleaned.endswith("```"):
             cleaned = "\n".join(cleaned.splitlines()[1:-1]).strip()
 
         lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
