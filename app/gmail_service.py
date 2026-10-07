@@ -1,4 +1,5 @@
 import base64
+import mimetypes
 from email.message import EmailMessage
 from pathlib import Path
 
@@ -44,18 +45,35 @@ class GmailService:
         return self._service or self.authenticate()
 
     @staticmethod
-    def _message(to, subject, body):
+    def _message(to, subject, body, attachments=None):
         message = EmailMessage()
         message["To"] = to
         message["Subject"] = subject
         message.set_content(body)
+
+        for attachment in attachments or []:
+            path = Path(attachment)
+            if not path.exists() or not path.is_file():
+                raise FileNotFoundError(f"Attachment not found: {path}")
+
+            content_type, _ = mimetypes.guess_type(path.name)
+            maintype, subtype = (content_type or "application/octet-stream").split(
+                "/", 1
+            )
+            message.add_attachment(
+                path.read_bytes(),
+                maintype=maintype,
+                subtype=subtype,
+                filename=path.name,
+            )
+
         raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
         return {"raw": raw}
 
-    def create_draft(self, to, subject, body):
+    def create_draft(self, to, subject, body, attachments=None):
         draft = self.service.users().drafts().create(
             userId="me",
-            body={"message": self._message(to, subject, body)},
+            body={"message": self._message(to, subject, body, attachments)},
         ).execute()
         return draft["id"]
 
