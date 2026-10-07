@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 import pandas as pd
 
@@ -29,6 +30,33 @@ def load_job_sheet(path: str | Path, sheet_name: str = "Qualified Leads") -> pd.
     return df
 
 
+def _normalize_text(value) -> str:
+    return " ".join(str(value or "").strip().lower().split())
+
+
+def _normalize_company(value) -> str:
+    text = _normalize_text(value)
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    text = re.sub(
+        r"\b(private limited|pvt ltd|pvt limited|limited|ltd|llp|llc|incorporated|inc)\b",
+        " ",
+        text,
+    )
+    return " ".join(text.split())
+
+
+def _dedupe_key(row) -> tuple[str, str, str]:
+    company = _normalize_company(row.get("Company"))
+    role = _normalize_text(row.get("Current Role"))
+    url = _normalize_text(row.get("Job / Apply URL"))
+    email = _normalize_text(row.get("Public Email"))
+
+    # Prefer the application URL when available. If a row has no URL, use
+    # the public recipient as the third discriminator instead.
+    target = url or email
+    return company, role, target
+
+
 def load_job_sheets(paths: list[str | Path], sheet_name: str = "Qualified Leads") -> pd.DataFrame:
     frames = []
     for path in paths:
@@ -40,19 +68,7 @@ def load_job_sheets(paths: list[str | Path], sheet_name: str = "Qualified Leads"
         raise ValueError("At least one input file is required.")
 
     result = pd.concat(frames, ignore_index=True, sort=False)
-
-    def normalize(value):
-        return " ".join(str(value or "").strip().lower().split())
-
-    keys = result.apply(
-        lambda row: (
-            normalize(row.get("Company")),
-            normalize(row.get("Current Role")),
-            normalize(row.get("Job / Apply URL")),
-        ),
-        axis=1,
-    )
-    result["_dedupe_key"] = keys
+    result["_dedupe_key"] = result.apply(_dedupe_key, axis=1)
     result = result.drop_duplicates(subset="_dedupe_key", keep="first").drop(
         columns="_dedupe_key"
     )
