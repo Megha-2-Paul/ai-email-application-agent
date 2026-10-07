@@ -41,16 +41,16 @@ class EmailGenerator:
         }
         job = {
             "company": _clean(row.get("Company")),
-            "role": _clean(row.get("Current Role"),
+            "role": _clean(row.get("Current Role")),
             "role_family": _clean(row.get("Role Family")),
             "work_location": _clean(row.get("Work Location")),
-            "work_mode": _clean(row.get("Work Mode"),
+            "work_mode": _clean(row.get("Work Mode")),
             "experience": _clean(row.get("Experience")),
-            "employment_type": _clean(row.get("Employment Type"),
-            "requirements": _clean(row.get("Job Description / Requirements"),
-            "recruiter": _clean(row.get("Recruiter / Contact"),
-            "job_url": _clean(row.get("Job / Apply URL"),
-            "notes": _clean(row.get("Notes"),
+            "employment_type": _clean(row.get("Employment Type")),
+            "requirements": _clean(row.get("Job Description / Requirements")),
+            "recruiter": _clean(row.get("Recruiter / Contact")),
+            "job_url": _clean(row.get("Job / Apply URL")),
+            "notes": _clean(row.get("Notes")),
         }
         return (
             "Create an application email using these facts.\n\n"
@@ -81,7 +81,7 @@ class EmailGenerator:
             messages=[
                 {
                     "role": "system",
-                    "content": ("
+                    "content": (
                         "You write concise professional job application emails. "
                         "Return only two sections, each starting on its own line: "
                         "SUBJECT: <one-line subject> and BODY: <email body>. "
@@ -105,7 +105,7 @@ class EmailGenerator:
     @staticmethod
     def _parse_response(content: str) -> tuple[str, str]:
         cleaned = content.strip()
-        if cleaned.startswith("`" * 3) and cleaned.endswith("`" * 3):
+        if cleaned.startswith(chr(96) * 3) and cleaned.endswith(chr(96) * 3):
             cleaned = "\n".join(cleaned.splitlines()[1:-1]).strip()
 
         lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
