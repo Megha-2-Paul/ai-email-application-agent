@@ -1,38 +1,13 @@
 import json
 import os
-from dataclasses import dataclass
 from typing import Any
 
 from dotenv import load_dotenv
 from groq import Groq
 
+from app.config import CandidateProfile, PROFILE
+
 load_dotenv()
-
-
-@dataclass(frozen=True)
-class CandidateProfile:
-    name: str = "Megha Paul"
-    current_role: str = "Associate Data Analyst"
-    experience: str = "2 years"
-    location: str = "Kolkata, India"
-    skills: tuple[str, ...] = (
-        "Python",
-        "SQL",
-        "Pandas",
-        "NumPy",
-        "Scikit-learn",
-        "FastAPI",
-        "Git",
-        "GitHub",
-        "Data Analysis",
-        "Machine Learning",
-    )
-    relevant_projects: tuple[str, ...] = (
-        "AI Data Analyst Agent",
-        "IoT & ML project",
-        "COVID-19 dashboard",
-        "Mental health dataset analysis",
-    )
 
 
 def _clean(value: Any) -> str:
@@ -66,16 +41,16 @@ class EmailGenerator:
         }
         job = {
             "company": _clean(row.get("Company")),
-            "role": _clean(row.get("Current Role")),
+            "role": _clean(row.get("Current Role"),
             "role_family": _clean(row.get("Role Family")),
             "work_location": _clean(row.get("Work Location")),
-            "work_mode": _clean(row.get("Work Mode")),
+            "work_mode": _clean(row.get("Work Mode"),
             "experience": _clean(row.get("Experience")),
-            "employment_type": _clean(row.get("Employment Type")),
-            "requirements": _clean(row.get("Job Description / Requirements")),
-            "recruiter": _clean(row.get("Recruiter / Contact")),
-            "job_url": _clean(row.get("Job / Apply URL")),
-            "notes": _clean(row.get("Notes")),
+            "employment_type": _clean(row.get("Employment Type"),
+            "requirements": _clean(row.get("Job Description / Requirements"),
+            "recruiter": _clean(row.get("Recruiter / Contact"),
+            "job_url": _clean(row.get("Job / Apply URL"),
+            "notes": _clean(row.get("Notes"),
         }
         return (
             "Create an application email using these facts.\n\n"
@@ -83,23 +58,36 @@ class EmailGenerator:
             f"JOB INFORMATION:\n{json.dumps(job, indent=2)}"
         )
 
+    @staticmethod
+    def _signature(profile: CandidateProfile) -> str:
+        return (
+            "\n\nBest regards,\n"
+            f"{profile.name}\n"
+            f"{profile.current_role}\n"
+            f"{profile.phone}\n"
+            f"{profile.email}\n"
+            f"LinkedIn: {profile.linkedin_url}"
+        )
+
     def generate(
         self,
         row: dict[str, Any],
         profile: CandidateProfile | None = None,
     ) -> tuple[str, str]:
-        profile = profile or CandidateProfile()
+        profile = profile or PROFILE
         response = self.client.chat.completions.create(
             model=self.model,
             temperature=0.2,
             messages=[
                 {
                     "role": "system",
-                    "content": (
+                    "content": ("
                         "You write concise professional job application emails. "
                         "Return only two sections, each starting on its own line: "
                         "SUBJECT: <one-line subject> and BODY: <email body>. "
                         "Do not use Markdown headings, code fences, or extra labels. "
+                        "Do not add a signature or contact details; those are added "
+                        "by the application system. "
                         "Do not invent candidate facts, salary, notice period, "
                         "qualifications, or job details."
                     ),
@@ -110,12 +98,14 @@ class EmailGenerator:
         content = response.choices[0].message.content
         if not content or not content.strip():
             raise ValueError("Groq returned an empty response.")
-        return self._parse_response(content.strip())
+
+        subject, body = self._parse_response(content.strip())
+        return subject, body + self._signature(profile)
 
     @staticmethod
     def _parse_response(content: str) -> tuple[str, str]:
         cleaned = content.strip()
-        if cleaned.startswith("```") and cleaned.endswith("```"):
+        if cleaned.startswith("`" * 3) and cleaned.endswith("`" * 3):
             cleaned = "\n".join(cleaned.splitlines()[1:-1]).strip()
 
         lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
