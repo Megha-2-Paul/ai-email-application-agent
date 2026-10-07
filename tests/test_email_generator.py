@@ -71,6 +71,25 @@ def test_parse_response_tolerates_code_fences():
     assert body == "Hello Hiring Team,\nI am applying."
 
 
+def test_clean_body_removes_model_generated_closing():
+    body = (
+        "Dear Hiring Team,\n"
+        "I am applying for this opportunity.\n\n"
+        "Kind regards,\n"
+        "Megha Paul"
+    )
+    assert EmailGenerator._clean_body(body) == (
+        "Dear Hiring Team,\nI am applying for this opportunity."
+    )
+
+
+def test_clean_body_preserves_content_before_closing():
+    body = "Dear Hiring Team,\nI am interested in the role.\n\nRegards,"
+    assert EmailGenerator._clean_body(body) == (
+        "Dear Hiring Team,\nI am interested in the role."
+    )
+
+
 def test_generate_uses_fake_groq_client():
     client = FakeGroqClient(
         "SUBJECT: Data Analyst Application\n"
@@ -119,3 +138,16 @@ def test_generate_rejects_empty_groq_response():
 
     with pytest.raises(ValueError, match="empty response"):
         generator.generate({"Company": "Example"})
+
+
+def test_prompt_separates_candidate_facts_from_job_requirements():
+    prompt = EmailGenerator.build_user_prompt(
+        {
+            "Company": "Example",
+            "Current Role": "Python Developer",
+            "Job Description / Requirements": "AWS, Docker and Kubernetes required",
+        },
+        PROFILE,
+    )
+    assert "Job requirements are NOT candidate experience or skills." in prompt
+    assert "candidate facts explicitly provided" in prompt
