@@ -112,21 +112,37 @@ class EmailGenerator:
 
     @staticmethod
     def _parse_response(content: str) -> tuple[str, str]:
-        lines = [line.rstrip() for line in content.splitlines()]
+        cleaned = content.strip()
+        if cleaned.startswith("\`\`\`") and cleaned.endswith("\`\`\`"):
+            cleaned = "\n".join(cleaned.splitlines()[1:-1]).strip()
+
+        lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
         subject_index = next(
-            (i for i, line in enumerate(lines) if line.strip().upper().startswith("SUBJECT:")),
+            (
+                i
+                for i, line in enumerate(lines)
+                if line.lstrip("#*_- ").upper().startswith("SUBJECT:")
+            ),
             None,
         )
         body_index = next(
-            (i for i, line in enumerate(lines) if line.strip().upper().startswith("BODY:")),
+            (
+                i
+                for i, line in enumerate(lines)
+                if line.lstrip("#*_- ").upper().startswith("BODY:")
+            ),
             None,
         )
 
         if subject_index is None or body_index is None or body_index <= subject_index:
             raise ValueError("Groq response must contain SUBJECT: followed by BODY:.")
 
-        subject = lines[subject_index].split(":", 1)[1].strip()
-        body = "\n".join(lines[body_index:]).split(":", 1)[1].strip()
+        subject_line = lines[subject_index].lstrip("#*_- ").strip()
+        body_start = lines[body_index].lstrip("#*_- ").strip()
+        subject = subject_line.split(":", 1)[1].strip()
+        body = "\n".join(
+            [body_start.split(":", 1)[1].strip(), *lines[body_index + 1 :]]
+        ).strip()
 
         if not subject:
             raise ValueError("Groq returned an empty subject.")
